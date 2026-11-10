@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace PDV\Repositories;
 
 use PDO;
+use DateTimeImmutable;
 use PDV\Models\Sale;
 use PDV\Models\SaleItem;
 use RuntimeException;
@@ -55,6 +56,60 @@ final class SaleRepository
             'unit_price' => $item->precoUnitario,
             'subtotal' => $item->subtotal,
         ]);
+    }
+
+    /** @return Sale[] */
+    public function findAll(array $filters = []): array
+    {
+        $conditions = [];
+        $parameters = [];
+        $startDate = $filters['data_inicial'] ?? '';
+        $endDate = $filters['data_final'] ?? '';
+        $paymentMethod = $filters['forma_pagamento'] ?? '';
+
+        if ($startDate !== '') {
+            $conditions[] = 'v.data_venda >= :start_date';
+            $parameters['start_date'] = $startDate . ' 00:00:00';
+        }
+
+        if ($endDate !== '') {
+            $endExclusive = DateTimeImmutable::createFromFormat('!Y-m-d', $endDate)
+                ->modify('+1 day')
+                ->format('Y-m-d');
+            $conditions[] = 'v.data_venda < :end_date_exclusive';
+            $parameters['end_date_exclusive'] = $endExclusive . ' 00:00:00';
+        }
+
+        if ($paymentMethod !== '') {
+            $conditions[] = 'v.forma_pagamento = :payment_method';
+            $parameters['payment_method'] = $paymentMethod;
+        }
+
+        $sql = 'SELECT v.id, v.cliente_id, v.data_venda, v.valor_total,
+                       v.forma_pagamento, c.nome AS cliente_nome
+                FROM vendas v
+                LEFT JOIN clientes c ON c.id = v.cliente_id';
+        if ($conditions !== []) {
+            $sql .= ' WHERE ' . implode(' AND ', $conditions);
+        }
+        $sql .= ' ORDER BY v.data_venda DESC, v.id DESC';
+
+        $statement = $this->connection->prepare($sql);
+        $statement->execute($parameters);
+        $sales = [];
+
+        foreach ($statement->fetchAll() as $row) {
+            $sales[] = new Sale(
+                (int) $row['id'],
+                $row['cliente_id'] === null ? null : (int) $row['cliente_id'],
+                (string) $row['valor_total'],
+                (string) $row['forma_pagamento'],
+                (string) $row['data_venda'],
+                $row['cliente_nome'] === null ? null : (string) $row['cliente_nome'],
+            );
+        }
+
+        return $sales;
     }
 
     public function findWithItems(int $id): ?array

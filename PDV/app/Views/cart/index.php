@@ -10,13 +10,6 @@ $error = $data['error'] ?? null;
     <div class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></div>
 <?php endif; ?>
 
-<div class="d-flex justify-content-end mb-3">
-    <form method="post" action="<?= htmlspecialchars($baseUrl . '/operador/sair', ENT_QUOTES, 'UTF-8') ?>">
-        <input type="hidden" name="_csrf" value="<?= htmlspecialchars($data['csrfToken'], ENT_QUOTES, 'UTF-8') ?>">
-        <button class="btn btn-outline-secondary" type="submit">Sair</button>
-    </form>
-</div>
-
 <section class="mb-5" aria-labelledby="add-product-heading">
     <h2 class="h4 mb-3" id="add-product-heading">Adicionar produto</h2>
     <?php if ($data['products'] === []): ?>
@@ -113,7 +106,7 @@ $error = $data['error'] ?? null;
 <?php if ($data['items'] !== []): ?>
     <section aria-labelledby="checkout-heading">
         <h2 class="h4 mb-3" id="checkout-heading">Finalizar venda</h2>
-        <form class="row g-3 align-items-end" method="post" action="<?= htmlspecialchars($baseUrl . '/vendas', ENT_QUOTES, 'UTF-8') ?>">
+        <form class="form-surface row g-3 align-items-end" method="post" action="<?= htmlspecialchars($baseUrl . '/vendas', ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="_csrf" value="<?= htmlspecialchars($data['csrfToken'], ENT_QUOTES, 'UTF-8') ?>">
             <div class="col-12 col-md-5">
                 <label class="form-label" for="cliente_id">Cliente (opcional)</label>

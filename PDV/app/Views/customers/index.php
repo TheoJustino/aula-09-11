@@ -6,17 +6,17 @@
     </div>
 <?php endif; ?>
 
-<div class="d-flex justify-content-end mb-3">
+<div class="page-toolbar">
     <a class="btn btn-primary" href="<?= htmlspecialchars($baseUrl . '/clientes/novo', ENT_QUOTES, 'UTF-8') ?>">
         Cadastrar cliente
     </a>
 </div>
 
 <?php if ($data['customers'] === []): ?>
-    <p class="text-muted">Nenhum cliente cadastrado.</p>
+    <div class="empty-state">Nenhum cliente cadastrado.</div>
 <?php else: ?>
     <div class="table-responsive">
-        <table class="table table-striped align-middle">
+        <table class="table table-striped table-hover align-middle">
             <thead>
                 <tr>
                     <th scope="col">Nome</th>

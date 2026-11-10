@@ -15,12 +15,20 @@ final class OperatorGuard
         'POST /carrinho/remover',
         'POST /vendas',
         'GET /vendas/confirmacao',
+        'GET /vendas/relatorios',
+        'GET /vendas/relatorios/detalhes',
         'GET /clientes',
         'GET /clientes/novo',
         'POST /clientes',
         'GET /clientes/editar',
         'POST /clientes/atualizar',
         'POST /clientes/excluir',
+        'GET /produtos',
+        'GET /produtos/novo',
+        'POST /produtos',
+        'GET /produtos/editar',
+        'POST /produtos/atualizar',
+        'POST /produtos/excluir',
     ];
 
     public static function requiresAuthentication(string $method, string $path): bool

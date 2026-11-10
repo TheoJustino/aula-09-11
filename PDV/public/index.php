@@ -49,6 +49,7 @@ $isSaleConfirmationRedirect = is_string($redirect)
 
 if (
     $redirect === '/clientes'
+    || $redirect === '/produtos'
     || $redirect === '/carrinho'
     || $redirect === '/operador/acesso'
     || $isSaleConfirmationRedirect

@@ -10,6 +10,7 @@ require_once dirname(__DIR__) . '/app/Repositories/CustomerRepository.php';
 require_once dirname(__DIR__) . '/app/Repositories/ProductRepository.php';
 require_once dirname(__DIR__) . '/app/Repositories/SaleRepository.php';
 require_once dirname(__DIR__) . '/app/Controllers/CustomerController.php';
+require_once dirname(__DIR__) . '/app/Controllers/ProductController.php';
 require_once dirname(__DIR__) . '/app/Controllers/CartController.php';
 require_once dirname(__DIR__) . '/app/Controllers/SaleController.php';
 require_once dirname(__DIR__) . '/app/Controllers/OperatorController.php';
@@ -17,17 +18,20 @@ require_once dirname(__DIR__) . '/app/Services/Money.php';
 require_once dirname(__DIR__) . '/app/Services/CartService.php';
 require_once dirname(__DIR__) . '/app/Services/SaleService.php';
 require_once dirname(__DIR__) . '/app/Services/OperatorGuard.php';
+require_once dirname(__DIR__) . '/app/Services/ProductImageStorage.php';
 
 use PDV\Config\Database;
 use PDV\Controllers\CartController;
 use PDV\Controllers\CustomerController;
 use PDV\Controllers\OperatorController;
+use PDV\Controllers\ProductController;
 use PDV\Controllers\SaleController;
 use PDV\Repositories\CustomerRepository;
 use PDV\Repositories\ProductRepository;
 use PDV\Repositories\SaleRepository;
 use PDV\Services\CartService;
 use PDV\Services\SaleService;
+use PDV\Services\ProductImageStorage;
 
 $customerController = static fn (): CustomerController => new CustomerController(
     new CustomerRepository(Database::getConnection()),
@@ -58,6 +62,10 @@ $saleController = static function (): SaleController {
     return new SaleController($service, $sales);
 };
 $operatorController = static fn (): OperatorController => new OperatorController();
+$productController = static fn (): ProductController => new ProductController(
+    new ProductRepository(Database::getConnection()),
+    new ProductImageStorage(dirname(__DIR__) . '/public'),
+);
 
 return [
     'GET /' => static fn (): array => [
@@ -71,12 +79,20 @@ return [
     'GET /clientes/editar' => static fn (): array => $customerController()->edit(),
     'POST /clientes/atualizar' => static fn (): array => $customerController()->update(),
     'POST /clientes/excluir' => static fn (): array => $customerController()->delete(),
+    'GET /produtos' => static fn (): array => $productController()->index(),
+    'GET /produtos/novo' => static fn (): array => $productController()->create(),
+    'POST /produtos' => static fn (): array => $productController()->store(),
+    'GET /produtos/editar' => static fn (): array => $productController()->edit(),
+    'POST /produtos/atualizar' => static fn (): array => $productController()->update(),
+    'POST /produtos/excluir' => static fn (): array => $productController()->delete(),
     'GET /carrinho' => static fn (): array => $cartController()->index(),
     'POST /carrinho/itens' => static fn (): array => $cartController()->add(),
     'POST /carrinho/quantidade' => static fn (): array => $cartController()->update(),
     'POST /carrinho/remover' => static fn (): array => $cartController()->remove(),
     'POST /vendas' => static fn (): array => $saleController()->store(),
     'GET /vendas/confirmacao' => static fn (): array => $saleController()->confirmation(),
+    'GET /vendas/relatorios' => static fn (): array => $saleController()->reportIndex(),
+    'GET /vendas/relatorios/detalhes' => static fn (): array => $saleController()->reportDetail(),
     'GET /operador/acesso' => static fn (): array => $operatorController()->show(),
     'POST /operador/acesso' => static fn (): array => $operatorController()->authenticate(),
     'POST /operador/sair' => static fn (): array => $operatorController()->logout(),

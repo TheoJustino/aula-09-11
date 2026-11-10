@@ -3,7 +3,7 @@ $values = $data['values'];
 $errors = $data['errors'];
 ?>
 
-<form method="post" action="<?= htmlspecialchars($baseUrl . '/clientes', ENT_QUOTES, 'UTF-8') ?>">
+<form class="form-surface" method="post" action="<?= htmlspecialchars($baseUrl . '/clientes', ENT_QUOTES, 'UTF-8') ?>">
     <input type="hidden" name="_csrf" value="<?= htmlspecialchars($data['csrfToken'], ENT_QUOTES, 'UTF-8') ?>">
     <?php require __DIR__ . '/_form_fields.php'; ?>
     <div class="d-flex gap-2 mt-4">

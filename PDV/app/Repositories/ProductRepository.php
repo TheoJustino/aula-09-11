@@ -24,6 +24,81 @@ final class ProductRepository
         return array_map(self::normalize(...), $statement->fetchAll());
     }
 
+    public function findAll(?string $search = null): array
+    {
+        $sql = 'SELECT id, cod, nome, categoria, validade, quantidade,
+                       preco_unitario, preco_pacote, imagem
+                FROM produtos';
+        $parameters = [];
+
+        if ($search !== null && trim($search) !== '') {
+            $sql .= ' WHERE LOWER(nome) LIKE LOWER(:name_search)
+                      OR LOWER(CAST(cod AS TEXT)) LIKE LOWER(:code_search)';
+            $parameters['name_search'] = '%' . trim($search) . '%';
+            $parameters['code_search'] = '%' . trim($search) . '%';
+        }
+
+        $sql .= ' ORDER BY nome, id';
+        $statement = $this->connection->prepare($sql);
+        $statement->execute($parameters);
+
+        return $statement->fetchAll();
+    }
+
+    public function findForManagementById(int $id): ?array
+    {
+        $statement = $this->connection->prepare(
+            'SELECT id, cod, nome, categoria, validade, quantidade,
+                    preco_unitario, preco_pacote, imagem
+             FROM produtos
+             WHERE id = :id'
+        );
+        $statement->execute(['id' => $id]);
+        $product = $statement->fetch();
+
+        return $product === false ? null : $product;
+    }
+
+    public function create(array $product): int
+    {
+        $statement = $this->connection->prepare(
+            'INSERT INTO produtos
+                (cod, nome, categoria, validade, quantidade, preco_unitario, preco_pacote, imagem)
+             VALUES
+                (:cod, :nome, :categoria, :validade, :quantidade, :preco_unitario, :preco_pacote, :imagem)
+             RETURNING id'
+        );
+        $statement->execute($product);
+
+        return (int) $statement->fetchColumn();
+    }
+
+    public function update(int $id, array $product): bool
+    {
+        $product['id'] = $id;
+        $statement = $this->connection->prepare(
+            'UPDATE produtos
+             SET cod = :cod,
+                 nome = :nome,
+                 categoria = :categoria,
+                 validade = :validade,
+                 quantidade = :quantidade,
+                 preco_unitario = :preco_unitario,
+                 preco_pacote = :preco_pacote,
+                 imagem = :imagem
+             WHERE id = :id'
+        );
+
+        return $statement->execute($product) && $statement->rowCount() > 0;
+    }
+
+    public function delete(int $id): bool
+    {
+        $statement = $this->connection->prepare('DELETE FROM produtos WHERE id = :id');
+
+        return $statement->execute(['id' => $id]) && $statement->rowCount() > 0;
+    }
+
     public function findById(int $id): ?array
     {
         $statement = $this->connection->prepare(

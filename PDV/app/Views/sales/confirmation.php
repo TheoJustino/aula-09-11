@@ -1,10 +1,10 @@
 <?php $sale = $data['sale']; ?>
 
-<div class="alert alert-success" role="status">
+<div class="alert alert-success sale-confirmation-banner" role="status">
     Venda #<?= (int) $sale->id ?> registrada com sucesso.
 </div>
 
-<dl class="row">
+<dl class="row sale-details">
     <dt class="col-sm-3">Data</dt>
     <dd class="col-sm-9"><?= htmlspecialchars($sale->dataVenda ?? '', ENT_QUOTES, 'UTF-8') ?></dd>
     <dt class="col-sm-3">Cliente</dt>
@@ -14,7 +14,7 @@
 </dl>
 
 <div class="table-responsive">
-    <table class="table table-striped">
+    <table class="table table-striped table-hover align-middle">
         <thead>
             <tr>
                 <th scope="col">Produto</th>
