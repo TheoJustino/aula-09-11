@@ -43,13 +43,10 @@ PDV/
 │   ├── index.php     # Front Controller
 │   ├── assets/       # CSS e JavaScript da interface
 │   └── uploads/products/ # Imagens enviadas pelo CRUD MVC
-├── imagens/         # Imagens usadas pelos scripts legados
-├── db.php           # Conexão/funções dos scripts legados
-├── pdv.php          # PDV legado, fora das rotas MVC
 └── OPERADOR.md      # Instruções complementares do segredo do operador
 ```
 
-Arquivos legados adicionais incluem `editar_produto.php`, `salvar_produto.php`, `salvar_produtomysql.php` e `index.html`. Eles não foram migrados para o MVC nem devem ser confundidos com as rotas atuais. O módulo MVC de produtos usa `ProductRepository` e a conexão de `Database`.
+Os scripts e a pasta de imagens da implementação antiga foram retirados de `PDV/`. O módulo MVC de produtos usa `ProductRepository` e a conexão única fornecida por `Database`.
 
 ## Arquitetura
 
@@ -78,7 +75,7 @@ Uma exceção durante as operações provoca rollback; como o carrinho só é li
 
 1. Use XAMPP com PHP 8.2, Apache e as extensões `pdo_pgsql` e `fileinfo` habilitadas.
 2. Configure o `DocumentRoot` do VirtualHost para `<caminho-absoluto-do-projeto>/PDV/public`, e a seção `<Directory>` correspondente com `AllowOverride All` e `Require all granted`. Habilite `mod_rewrite`; as regras do `.htaccess` encaminham as rotas ao front controller e desativam listagem de diretórios.
-3. Não use `PDV/` como raiz pública. Código interno, migrations e o `.env` ficam fora de `public/`; os scripts legados não são a entrada MVC.
+3. Não use `PDV/` como raiz pública. Código interno, migrations e o `.env` ficam fora de `public/`; `public/index.php` é a entrada MVC.
 4. Garanta que o usuário do Apache/PHP possa gravar em `PDV/public/uploads/products`. A pasta e suas regras de bloqueio são criadas/fornecidas pelo módulo de imagens.
 5. Acesse a URL configurada no VirtualHost e entre pelo endereço `/operador/acesso`.
 
@@ -113,7 +110,7 @@ O acesso é baseado em um segredo compartilhado, não em contas individuais. Nã
 Não existe executor automático. As migrations devem ser aplicadas manualmente, uma única vez, em um banco de desenvolvimento/implantação preparado:
 
 1. Confirme que a tabela `produtos` já existe. Não há migration de produtos no projeto.
-2. Confira no banco alvo o tipo nativo de `produtos.id`. Os scripts legados não contêm DDL. A migration de vendas declara `itens_venda.produto_id INTEGER`, portanto esse tipo precisa ser compatível com a chave existente antes de prosseguir.
+2. Confira no banco alvo o tipo nativo de `produtos.id`. O repositório não contém DDL de produtos. A migration de vendas declara `itens_venda.produto_id INTEGER`, portanto esse tipo precisa ser compatível com a chave existente antes de prosseguir.
 3. Aplique `database/migrations/20261110_create_clientes.sql`.
 4. Aplique `database/migrations/20261110_create_sales.sql`, que depende de `clientes` e `produtos`.
 
@@ -164,7 +161,7 @@ A sequência usual é autenticar o operador, acessar Produtos e Clientes conform
 - Há validações CLI ad hoc e verificações de sintaxe, mas não foi encontrado um framework/pacote de testes automatizados.
 - Foram executados testes com SQLite em memória para operações do `ProductRepository`, regras do carrinho, cálculos, listagem/filtros/detalhes de relatórios e validações de controller. Esses testes não substituem a integração PostgreSQL.
 - PHP CLI disponível na última verificação: 8.3.33; PDO listou somente `sqlite`. A conexão PostgreSQL não foi confirmada e nenhuma migration foi executada. O uso com PHP 8.2/XAMPP e PostgreSQL real ainda requer validação nesse ambiente.
-- O tipo nativo e as restrições da tabela legada `produtos` não estão documentados por DDL no repositório; confirme-os, especialmente `produtos.id`, antes da migration de vendas.
+- O tipo nativo e as restrições da tabela preexistente `produtos` não estão documentados por DDL no repositório; confirme-os, especialmente `produtos.id`, antes da migration de vendas.
 - A listagem de relatórios não tem paginação. O limite de estoque baixo está fixado em cinco unidades.
-- Imagens legadas armazenadas em `PDV/imagens/` são preservadas no campo do produto, mas só imagens presentes em `public/uploads/products/` têm prévia servida pelo MVC.
+- A pasta antiga `PDV/imagens/` foi removida. Registros existentes cujo campo `imagem` aponta para arquivos dessa pasta podem não ter prévia disponível; novas imagens do MVC ficam em `public/uploads/products/`.
 - O hash do operador é compartilhado, não identifica pessoas individualmente. O cookie `Secure` depende de o PHP detectar HTTPS; confira a configuração se houver proxy terminando TLS.

@@ -36,7 +36,7 @@ DocumentRoot "<caminho-absoluto>/PDV/public"
 
 Habilite `mod_rewrite` na configuração do Apache e reinicie o serviço depois de alterar o VirtualHost. As regras em `public/.htaccess` encaminham caminhos MVC ao front controller e servem arquivos estáticos existentes. `PDV/.htaccess` é uma defesa adicional; não substitui o `DocumentRoot` correto. Não use `PDV/` como raiz pública.
 
-Os scripts antigos (`pdv.php`, `editar_produto.php`, `salvar_produto.php` e outros) continuam no projeto, mas não fazem parte das rotas MVC. Não os use como entrada do sistema MVC nem os publique por uma configuração alternativa de raiz.
+Os scripts antigos da raiz foram retirados durante a limpeza. O fluxo operacional documentado neste procedimento é o MVC servido por `public/index.php`.
 
 ### 3.2 Banco e arquivo `.env`
 
@@ -72,14 +72,14 @@ Consulte também `OPERADOR.md`. Nunca registre o segredo original nem um hash re
 - Preserve as regras `.htaccess` existentes e confirme que o Apache está autorizado a aplicá-las.
 - Garanta escrita apenas para o usuário de serviço em `public/uploads/products`.
 - A pasta de uploads desativa listagem/CGI e nega extensões executáveis. O serviço aceita somente JPEG, PNG e WebP, valida MIME/extensão e imagem, limita o tamanho a 2 MB e gera nomes aleatórios.
-- Imagens antigas em `PDV/imagens/` são mantidas para os scripts legados; o MVC só apresenta prévia de arquivos gerenciados em `public/uploads/products`.
+- A pasta antiga `PDV/imagens/` foi removida. Produtos cujo campo `imagem` ainda referencia arquivos antigos podem não apresentar prévia; imagens novas devem ser enviadas pelo formulário MVC.
 
 ## 4. Preparação do banco de dados
 
 **Não execute as migrations até confirmar o schema do banco alvo.** O ambiente de desenvolvimento atual não tem `pdo_pgsql` e a integração PostgreSQL não foi validada.
 
 1. Crie ou selecione o banco PostgreSQL usando o procedimento aprovado pelo administrador/serviço de hospedagem.
-2. Verifique a existência da tabela legada `produtos` e seus campos. Os scripts do projeto usam `id`, `cod`, `nome`, `categoria`, `validade`, `quantidade`, `preco_unitario`, `preco_pacote` e `imagem`, mas o repositório não contém DDL que confirme tipos, tamanhos, nulabilidade ou restrições da tabela.
+2. Verifique a existência da tabela preexistente `produtos` e seus campos. O `ProductRepository` usa `id`, `cod`, `nome`, `categoria`, `validade`, `quantidade`, `preco_unitario`, `preco_pacote` e `imagem`, mas o repositório não contém DDL que confirme tipos, tamanhos, nulabilidade ou restrições da tabela.
 3. Confirme especificamente o tipo nativo de `produtos.id`. A migration de vendas declara `itens_venda.produto_id INTEGER REFERENCES produtos(id)`; a criação dessa FK pode falhar se os tipos forem incompatíveis. Não ajuste o schema automaticamente: interrompa e peça validação técnica caso não corresponda.
 4. Confira se as tabelas `clientes`, `vendas` ou `itens_venda` já existem. Os arquivos usam `CREATE TABLE` sem `IF NOT EXISTS`; executá-los sobre tabelas existentes causará erro.
 5. Aplique manualmente, uma única vez, nesta ordem:
@@ -158,7 +158,7 @@ O servidor embutido do PHP não lê `.htaccess`; ele não é equivalente à vali
 - Guarde `.env`, hash do operador, backups e arquivos de configuração fora do controle de versão e com acesso restrito. Nunca compartilhe senha, hash, token CSRF ou URL de conexão.
 - Restrinja o acesso às rotas operacionais e aos dados pessoais de clientes. A autenticação usa um segredo compartilhado; ela não identifica operadores individualmente nem oferece trilha de auditoria por pessoa.
 - Mantenha o site sob HTTPS em uso remoto, faça backups do banco e dos uploads conforme a política institucional e teste a restauração em ambiente controlado.
-- Preserve `PDV/public` como única raiz pública. Não exponha `app/`, `config/`, `database/`, `.env`, `db.php` ou scripts legados; as regras `.htaccess` são defesa adicional e não substituem a configuração correta do `DocumentRoot`.
+- Preserve `PDV/public` como única raiz pública. Não exponha `app/`, `config/`, `database/` ou `.env`; as regras `.htaccess` são defesa adicional e não substituem a configuração correta do `DocumentRoot`.
 
 ### Situação das validações
 
