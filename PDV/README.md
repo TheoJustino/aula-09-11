@@ -2,11 +2,11 @@
 
 ## Apresentação
 
-O PDV é uma aplicação web para apoiar rotinas básicas de comércio: manutenção do catálogo de produtos e dos clientes, composição de carrinho, registro de vendas e consulta do histórico. A interface MVC fica em `public/`; os scripts PHP antigos permanecem no projeto, mas não fazem parte do roteamento MVC.
+O PDV é uma aplicação web para apoiar rotinas básicas de comércio: manutenção do catálogo de produtos e dos clientes, composição de carrinho, registro de vendas e consulta do histórico. A interface MVC fica em `public/` e abre diretamente, sem autenticação, para demonstração acadêmica local.
 
 ## Funcionalidades
 
-- Acesso operacional por segredo compartilhado, com hash configurado fora do código, sessão regenerada no login e logout via POST.
+- Acesso direto aos módulos para demonstração acadêmica local, sem autenticação de operador.
 - CRUD de produtos com pesquisa por nome/código, indicação de estoque e upload de imagem JPEG, PNG ou WebP de até 2 MB.
 - CRUD de clientes com validação de CPF, e-mail e duplicidade.
 - Carrinho de sessão com alteração e remoção de itens, consulta de estoque e cálculo em centavos. O carrinho não baixa estoque.
@@ -35,7 +35,7 @@ PDV/
 │   ├── Controllers/  # Entrada HTTP, validação e seleção de views
 │   ├── Models/       # Objetos de dados Customer, Sale e SaleItem
 │   ├── Repositories/ # Consultas PDO para clientes, produtos e vendas
-│   ├── Services/     # Carrinho, venda, dinheiro, operador e imagens
+│   ├── Services/     # Carrinho, venda, dinheiro, CSRF e imagens
 │   └── Views/        # Layout e telas de clientes, produtos, carrinho e vendas
 ├── config/routes.php
 ├── database/migrations/
@@ -43,19 +43,20 @@ PDV/
 │   ├── index.php     # Front Controller
 │   ├── assets/       # CSS e JavaScript da interface
 │   └── uploads/products/ # Imagens enviadas pelo CRUD MVC
-└── OPERADOR.md      # Instruções complementares do segredo do operador
+├── README.md         # Visão técnica e instruções do projeto
+└── POP.md            # Procedimento operacional padrão
 ```
 
 Os scripts e a pasta de imagens da implementação antiga foram retirados de `PDV/`. O módulo MVC de produtos usa `ProductRepository` e a conexão única fornecida por `Database`.
 
 ## Arquitetura
 
-O front controller em `public/index.php` normaliza método e caminho, procura a chave `MÉTODO /caminho` devolvida por `config/routes.php`, aplica o `OperatorGuard` às rotas operacionais e então executa a closure correspondente. As closures retornam dados e o identificador da view; o dispatcher inclui a view e o layout compartilhado.
+O front controller em `public/index.php` normaliza método e caminho, procura a chave `MÉTODO /caminho` devolvida por `config/routes.php` e executa a closure correspondente sem exigir autenticação. As closures retornam dados e o identificador da view; o dispatcher inclui a view e o layout compartilhado.
 
 - **MVC:** controllers recebem entradas, chamam repositórios/serviços e fornecem dados às views; as views em `app/Views/` apresentam dados escapados.
 - **Repository:** `CustomerRepository`, `ProductRepository` e `SaleRepository` concentram SQL e prepared statements.
-- **Service Layer:** `CartService` mantém e valida o carrinho; `SaleService` coordena a finalização; `Money` faz cálculos em centavos; `OperatorGuard` autentica/autorização de operador; `ProductImageStorage` valida e grava imagens.
-- **Front Controller:** `public/index.php` é a única entrada MVC e aplica autorização centralizada antes das closures.
+- **Service Layer:** `CartService` mantém e valida o carrinho; `SaleService` coordena a finalização; `Money` faz cálculos em centavos; `CsrfProtection` protege formulários; `ProductImageStorage` valida e grava imagens.
+- **Front Controller:** `public/index.php` é a entrada MVC e despacha as rotas.
 - **Injeção de dependência:** as factories em `config/routes.php` obtêm o PDO único de `Database::getConnection()` e o passam aos repositórios; repositórios e serviços são injetados nos controllers/serviços que os utilizam.
 
 Os Models `Customer`, `Sale` e `SaleItem` representam dados. O CRUD de produtos utiliza arrays associativos retornados pelo repository, seguindo o contrato que já era usado pelo carrinho e pelas vendas.
@@ -77,7 +78,7 @@ Uma exceção durante as operações provoca rollback; como o carrinho só é li
 2. Configure o `DocumentRoot` do VirtualHost para `<caminho-absoluto-do-projeto>/PDV/public`, e a seção `<Directory>` correspondente com `AllowOverride All` e `Require all granted`. Habilite `mod_rewrite`; as regras do `.htaccess` encaminham as rotas ao front controller e desativam listagem de diretórios.
 3. Não use `PDV/` como raiz pública. Código interno, migrations e o `.env` ficam fora de `public/`; `public/index.php` é a entrada MVC.
 4. Garanta que o usuário do Apache/PHP possa gravar em `PDV/public/uploads/products`. A pasta e suas regras de bloqueio são criadas/fornecidas pelo módulo de imagens.
-5. Acesse a URL configurada no VirtualHost e entre pelo endereço `/operador/acesso`.
+5. Acesse no navegador a URL configurada no VirtualHost. A aplicação abre diretamente, sem tela de login.
 
 O `.htaccess` de uploads nega execução de extensões de script. A configuração deve ser conferida no Apache real, pois o servidor embutido do PHP não aplica `.htaccess`.
 
@@ -93,17 +94,11 @@ A conexão configura PDO para exceções e fetch associativo, exige SSL (`sslmod
 
 Não há `.env.example`. Nunca copie credenciais reais para este README, mensagens de erro, commits ou documentação compartilhada.
 
-## Acesso do operador
+## Modo de demonstração local
 
-Configure `PDV_OPERATOR_SECRET_HASH` no ambiente do Apache, conforme o guia [OPERADOR.md](OPERADOR.md). Gere um hash localmente com PHP CLI; o segredo deve ser informado durante a execução e não deve ser salvo no código ou na sessão:
+A autenticação de operador foi removida para facilitar a avaliação acadêmica local. Não é necessário configurar conta, senha, hash ou variável de segredo. CSRF, validações, prepared statements e proteções de upload continuam ativos.
 
-```sh
-php -r '$secret = trim(fgets(STDIN)); echo password_hash($secret, PASSWORD_DEFAULT), PHP_EOL;'
-```
-
-No `<VirtualHost>` do XAMPP, defina `SetEnv PDV_OPERATOR_SECRET_HASH "<hash-gerado-localmente>"` e reinicie o Apache. A aplicação valida com `password_verify()`, regenera o ID de sessão e guarda somente uma marca de autenticação. Formulários mutáveis mantêm CSRF; cookies usam `HttpOnly`, `SameSite=Lax` e `Secure` quando o PHP detecta HTTPS.
-
-O acesso é baseado em um segredo compartilhado, não em contas individuais. Não há atribuição/auditoria por operador, recuperação de senha ou limitação de tentativas.
+**Esta configuração não é adequada para produção.** Qualquer pessoa com acesso à aplicação pode abrir os módulos e consultar/alterar dados. Use somente em ambiente local de demonstração, não exponha o VirtualHost à rede pública e não utilize dados pessoais reais.
 
 ## Migrations
 
@@ -127,13 +122,11 @@ psql -W -h <host> -p <porta> -U <usuario> -d <banco> -f database/migrations/2026
 
 ## Rotas e uso
 
-A autorização do operador é aplicada no dispatcher às operações de clientes, produtos, carrinho, vendas e relatórios.
+Nesta edição acadêmica, as rotas MVC não exigem autenticação. As operações de alteração continuam usando POST e CSRF.
 
 | Método | Rota | Uso |
 |---|---|---|
 | GET | `/` | Painel com atalhos para módulos MVC disponíveis |
-| GET / POST | `/operador/acesso` | Formulário e validação do segredo do operador |
-| POST | `/operador/sair` | Logout com CSRF |
 | GET | `/produtos` | Listagem e busca por nome/código |
 | GET | `/produtos/novo` | Formulário de cadastro |
 | POST | `/produtos` | Cadastro |
@@ -154,14 +147,14 @@ A autorização do operador é aplicada no dispatcher às operações de cliente
 | GET | `/vendas/relatorios` | Histórico com filtros de data/pagamento |
 | GET | `/vendas/relatorios/detalhes?id=...` | Itens e valores de uma venda |
 
-A sequência usual é autenticar o operador, acessar Produtos e Clientes conforme necessário, montar o carrinho, selecionar forma de pagamento/cliente e confirmar. Relatórios permitem consultar as vendas existentes. Todas as mutações dos módulos usam POST e CSRF.
+A sequência usual é abrir a aplicação, acessar Produtos e Clientes conforme necessário, montar o carrinho, selecionar forma de pagamento/cliente e confirmar. Relatórios permitem consultar as vendas existentes. Todas as mutações dos módulos usam POST e CSRF.
 
 ## Validação e limitações
 
 - Há validações CLI ad hoc e verificações de sintaxe, mas não foi encontrado um framework/pacote de testes automatizados.
-- Foram executados testes com SQLite em memória para operações do `ProductRepository`, regras do carrinho, cálculos, listagem/filtros/detalhes de relatórios e validações de controller. Esses testes não substituem a integração PostgreSQL.
+- Foram executados testes com SQLite em memória para operações do `ProductRepository`, regras do carrinho, cálculos, listagem/filtros/detalhes de relatórios, validações de controller e CSRF. Esses testes não substituem a integração PostgreSQL.
 - PHP CLI disponível na última verificação: 8.3.33; PDO listou somente `sqlite`. A conexão PostgreSQL não foi confirmada e nenhuma migration foi executada. O uso com PHP 8.2/XAMPP e PostgreSQL real ainda requer validação nesse ambiente.
 - O tipo nativo e as restrições da tabela preexistente `produtos` não estão documentados por DDL no repositório; confirme-os, especialmente `produtos.id`, antes da migration de vendas.
 - A listagem de relatórios não tem paginação. O limite de estoque baixo está fixado em cinco unidades.
 - A pasta antiga `PDV/imagens/` foi removida. Registros existentes cujo campo `imagem` aponta para arquivos dessa pasta podem não ter prévia disponível; novas imagens do MVC ficam em `public/uploads/products/`.
-- O hash do operador é compartilhado, não identifica pessoas individualmente. O cookie `Secure` depende de o PHP detectar HTTPS; confira a configuração se houver proxy terminando TLS.
+- A aplicação não autentica operadores nesta edição acadêmica; não é adequada para produção nem para redes compartilhadas. O cookie `Secure` de sessão depende de o PHP detectar HTTPS; confira essa configuração se houver proxy terminando TLS.

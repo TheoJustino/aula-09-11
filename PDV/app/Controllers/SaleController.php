@@ -8,7 +8,7 @@ use DomainException;
 use DateTimeImmutable;
 use PDV\Repositories\SaleRepository;
 use PDV\Services\Money;
-use PDV\Services\OperatorGuard;
+use PDV\Services\CsrfProtection;
 use PDV\Services\SaleService;
 
 final class SaleController
@@ -19,10 +19,7 @@ final class SaleController
 
     public function store(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-        if (!OperatorGuard::hasValidCsrfToken($_POST['_csrf'] ?? null)) {
+        if (!CsrfProtection::isValid($_POST['_csrf'] ?? null)) {
             return $this->page('errors/403', 'Requisição não autorizada', [
                 'message' => 'Não foi possível validar esta requisição. Atualize a página e tente novamente.',
             ], 403);
@@ -37,7 +34,7 @@ final class SaleController
 
             $saleId = $this->saleService->finalize($customerId, trim($paymentMethod));
         } catch (DomainException $exception) {
-            OperatorGuard::startSession();
+            CsrfProtection::startSession();
             $_SESSION['sale_error'] = $exception->getMessage();
 
             return ['redirect' => '/carrinho'];
@@ -48,10 +45,6 @@ final class SaleController
 
     public function confirmation(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-
         $id = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
         $saleData = $id === false ? null : $this->sales->findWithItems($id);
 
@@ -81,10 +74,6 @@ final class SaleController
 
     public function reportIndex(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-
         $filters = [
             'data_inicial' => $this->queryString('data_inicial'),
             'data_final' => $this->queryString('data_final'),
@@ -138,10 +127,6 @@ final class SaleController
 
     public function reportDetail(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-
         $id = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
         $saleData = $id === false ? null : $this->sales->findWithItems($id);
 

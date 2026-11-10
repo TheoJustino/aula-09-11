@@ -8,7 +8,7 @@ use DateTimeImmutable;
 use DomainException;
 use PDOException;
 use PDV\Repositories\ProductRepository;
-use PDV\Services\OperatorGuard;
+use PDV\Services\CsrfProtection;
 use PDV\Services\ProductImageStorage;
 use Throwable;
 
@@ -24,10 +24,6 @@ final class ProductController
 
     public function index(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-
         $search = $this->queryString('q');
         $products = $this->products->findAll($search);
         foreach ($products as &$product) {
@@ -42,7 +38,7 @@ final class ProductController
         }
         unset($product);
 
-        OperatorGuard::startSession();
+        CsrfProtection::startSession();
         $success = $_SESSION['product_success'] ?? null;
         $error = $_SESSION['product_error'] ?? null;
         unset($_SESSION['product_success'], $_SESSION['product_error']);
@@ -52,25 +48,18 @@ final class ProductController
             'search' => $search,
             'success' => $success,
             'error' => $error,
-            'csrfToken' => OperatorGuard::csrfToken(),
+            'csrfToken' => CsrfProtection::token(),
         ]);
     }
 
     public function create(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-
         return $this->formPage('products/create', 'Novo produto', $this->emptyValues(), []);
     }
 
     public function store(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-        if (!OperatorGuard::hasValidCsrfToken($_POST['_csrf'] ?? null)) {
+        if (!CsrfProtection::isValid($_POST['_csrf'] ?? null)) {
             return $this->forbidden();
         }
 
@@ -103,10 +92,6 @@ final class ProductController
 
     public function edit(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-
         $id = $this->validatedId($_GET['id'] ?? null);
         $product = $id === null ? null : $this->products->findForManagementById($id);
         if ($product === null) {
@@ -120,10 +105,7 @@ final class ProductController
 
     public function update(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-        if (!OperatorGuard::hasValidCsrfToken($_POST['_csrf'] ?? null)) {
+        if (!CsrfProtection::isValid($_POST['_csrf'] ?? null)) {
             return $this->forbidden();
         }
 
@@ -180,10 +162,7 @@ final class ProductController
 
     public function delete(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-        if (!OperatorGuard::hasValidCsrfToken($_POST['_csrf'] ?? null)) {
+        if (!CsrfProtection::isValid($_POST['_csrf'] ?? null)) {
             return $this->forbidden();
         }
 
@@ -228,7 +207,7 @@ final class ProductController
             'id' => $id,
             'currentImage' => $currentImage,
             'imageUrl' => $this->images->publicUrl($currentImage, ''),
-            'csrfToken' => OperatorGuard::csrfToken(),
+            'csrfToken' => CsrfProtection::token(),
         ], $status);
     }
 
@@ -372,7 +351,7 @@ final class ProductController
 
     private function redirectWithFlash(string $key, string $message): array
     {
-        OperatorGuard::startSession();
+        CsrfProtection::startSession();
         $_SESSION[$key] = $message;
 
         return ['redirect' => '/produtos'];

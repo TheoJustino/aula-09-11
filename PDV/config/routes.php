@@ -13,17 +13,15 @@ require_once dirname(__DIR__) . '/app/Controllers/CustomerController.php';
 require_once dirname(__DIR__) . '/app/Controllers/ProductController.php';
 require_once dirname(__DIR__) . '/app/Controllers/CartController.php';
 require_once dirname(__DIR__) . '/app/Controllers/SaleController.php';
-require_once dirname(__DIR__) . '/app/Controllers/OperatorController.php';
 require_once dirname(__DIR__) . '/app/Services/Money.php';
 require_once dirname(__DIR__) . '/app/Services/CartService.php';
 require_once dirname(__DIR__) . '/app/Services/SaleService.php';
-require_once dirname(__DIR__) . '/app/Services/OperatorGuard.php';
+require_once dirname(__DIR__) . '/app/Services/CsrfProtection.php';
 require_once dirname(__DIR__) . '/app/Services/ProductImageStorage.php';
 
 use PDV\Config\Database;
 use PDV\Controllers\CartController;
 use PDV\Controllers\CustomerController;
-use PDV\Controllers\OperatorController;
 use PDV\Controllers\ProductController;
 use PDV\Controllers\SaleController;
 use PDV\Repositories\CustomerRepository;
@@ -61,7 +59,6 @@ $saleController = static function (): SaleController {
 
     return new SaleController($service, $sales);
 };
-$operatorController = static fn (): OperatorController => new OperatorController();
 $productController = static fn (): ProductController => new ProductController(
     new ProductRepository(Database::getConnection()),
     new ProductImageStorage(dirname(__DIR__) . '/public'),
@@ -93,7 +90,4 @@ return [
     'GET /vendas/confirmacao' => static fn (): array => $saleController()->confirmation(),
     'GET /vendas/relatorios' => static fn (): array => $saleController()->reportIndex(),
     'GET /vendas/relatorios/detalhes' => static fn (): array => $saleController()->reportDetail(),
-    'GET /operador/acesso' => static fn (): array => $operatorController()->show(),
-    'POST /operador/acesso' => static fn (): array => $operatorController()->authenticate(),
-    'POST /operador/sair' => static fn (): array => $operatorController()->logout(),
 ];

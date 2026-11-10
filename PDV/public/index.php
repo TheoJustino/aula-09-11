@@ -26,12 +26,7 @@ if ($route === null) {
     ];
 } else {
     try {
-        if (PDV\Services\OperatorGuard::requiresAuthentication($method, $path)
-            && !PDV\Services\OperatorGuard::isAuthenticated()) {
-            $page = PDV\Services\OperatorGuard::accessRequired();
-        } else {
-            $page = $route();
-        }
+        $page = $route();
     } catch (Throwable $exception) {
         error_log('Falha ao processar uma requisição da aplicação PDV.');
         http_response_code(500);
@@ -51,7 +46,6 @@ if (
     $redirect === '/clientes'
     || $redirect === '/produtos'
     || $redirect === '/carrinho'
-    || $redirect === '/operador/acesso'
     || $isSaleConfirmationRedirect
 ) {
     header('Location: ' . $basePath . $redirect, true, 303);

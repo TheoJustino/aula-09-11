@@ -31,7 +31,7 @@ a:hover { color: var(--teal); }
 button, input, select { font: inherit; }
 
 .app-shell { min-height: 100vh; }
-.app-shell--authenticated { display: flex; }
+.app-shell--application { display: flex; }
 .app-main { min-width: 0; flex: 1; }
 
 .sidebar {
@@ -47,7 +47,7 @@ button, input, select { font: inherit; }
     transition: width 180ms ease, transform 180ms ease;
 }
 
-.sidebar-brand, .topbar-brand {
+.sidebar-brand {
     display: flex;
     min-height: 48px;
     align-items: center;
@@ -70,7 +70,7 @@ button, input, select { font: inherit; }
 }
 
 .brand-copy { display: grid; line-height: 1.2; }
-.brand-copy strong, .topbar-brand strong { font-size: 16px; }
+.brand-copy strong { font-size: 16px; }
 .brand-copy small { margin-top: 4px; color: #9fb3bd; font-size: 11px; }
 .sidebar-label { margin: 34px 11px 10px; color: #8ca4af; font-size: 10px; font-weight: 700; text-transform: uppercase; }
 .sidebar-nav { display: grid; gap: 5px; }
@@ -94,13 +94,8 @@ button, input, select { font: inherit; }
 .nav-link-pdv.is-active { background: #e2f1ef; color: var(--navy); font-weight: 700; }
 .nav-glyph { display: inline-grid; width: 26px; height: 26px; flex: 0 0 26px; place-items: center; border: 1px solid rgb(255 255 255 / 20%); border-radius: 7px; color: inherit; font-size: 11px; font-weight: 800; }
 .is-active .nav-glyph { border-color: #b6dcd5; background: #cfe9e4; color: #126a65; }
-.nav-glyph--exit { border-color: rgb(255 255 255 / 16%); }
 .sidebar-spacer { flex: 1; }
-.sidebar-footer { display: grid; gap: 10px; border-top: 1px solid rgb(255 255 255 / 12%); padding-top: 15px; }
-.sidebar-footer form { margin: 0; }
-.operator-chip { display: flex; min-height: 30px; align-items: center; gap: 10px; padding: 0 10px; color: #a9bdc6; font-size: 12px; }
-.operator-dot, .status-indicator { width: 8px; height: 8px; border-radius: 50%; background: #50c2a8; box-shadow: 0 0 0 3px rgb(80 194 168 / 16%); }
-.nav-button-pdv { width: 100%; cursor: pointer; }
+.status-indicator { width: 8px; height: 8px; border-radius: 50%; background: #50c2a8; box-shadow: 0 0 0 3px rgb(80 194 168 / 16%); }
 .sidebar-backdrop { display: none; }
 
 .topbar {
@@ -117,7 +112,6 @@ button, input, select { font: inherit; }
     backdrop-filter: blur(12px);
 }
 
-.topbar-brand { display: none; color: var(--navy); }
 .topbar-context { display: flex; min-width: 0; align-items: center; gap: 11px; color: var(--muted); font-size: 13px; }
 .topbar-kicker { color: var(--ink); font-weight: 700; }
 .topbar-divider { color: #a6b5ba; }
@@ -180,9 +174,6 @@ button, input, select { font: inherit; }
 .sale-report-total { display: grid; gap: 3px; text-align: right; }
 .sale-report-total span { color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
 .sale-report-total strong { color: var(--navy); font-size: 22px; }
-.access-panel { width: min(100%, 490px); margin: 3vh auto; padding: clamp(23px, 4vw, 38px); border: 1px solid var(--line); border-radius: 10px; background: #fff; box-shadow: var(--shadow); }
-.access-panel .access-emblem { display: grid; width: 46px; height: 46px; place-items: center; margin-bottom: 20px; border-radius: 10px; background: var(--navy); color: #fff; font-weight: 800; }
-.access-panel .form-control { margin-bottom: 18px; }
 .product-toolbar { align-items: center; justify-content: space-between; gap: 12px; }
 .product-search { display: flex; width: min(100%, 470px); gap: 8px; }
 .product-search .form-control { min-width: 0; }
@@ -196,31 +187,29 @@ button, input, select { font: inherit; }
 .stock-badge--empty { background: #fce8e7; color: #a13838; }
 .product-form { max-width: 820px; }
 
-.app-shell--authenticated .app-main { margin-left: 252px; transition: margin-left 180ms ease; }
-.app-shell--authenticated.is-collapsed .sidebar { width: 76px; }
-.app-shell--authenticated.is-collapsed .app-main { margin-left: 76px; }
-.app-shell--authenticated.is-collapsed .brand-copy,
-.app-shell--authenticated.is-collapsed .sidebar-label,
-.app-shell--authenticated.is-collapsed .nav-copy { display: none; }
-.app-shell--authenticated.is-collapsed .sidebar-brand { justify-content: center; }
-.app-shell--authenticated.is-collapsed .nav-link-pdv { justify-content: center; padding-inline: 5px; }
-.app-shell--authenticated.is-collapsed .operator-chip { justify-content: center; padding-inline: 0; }
+.app-shell--application .app-main { margin-left: 252px; transition: margin-left 180ms ease; }
+.app-shell--application.is-collapsed .sidebar { width: 76px; }
+.app-shell--application.is-collapsed .app-main { margin-left: 76px; }
+.app-shell--application.is-collapsed .brand-copy,
+.app-shell--application.is-collapsed .sidebar-label,
+.app-shell--application.is-collapsed .nav-copy { display: none; }
+.app-shell--application.is-collapsed .sidebar-brand { justify-content: center; }
+.app-shell--application.is-collapsed .nav-link-pdv { justify-content: center; padding-inline: 5px; }
 
 @media (max-width: 900px) {
     .sidebar { width: 252px; transform: translateX(-100%); }
-    .app-shell--authenticated .app-main,
-    .app-shell--authenticated.is-collapsed .app-main { margin-left: 0; }
-    .app-shell--authenticated .sidebar { width: 252px; }
-    .app-shell--authenticated .brand-copy,
-    .app-shell--authenticated .sidebar-label,
-    .app-shell--authenticated .nav-copy { display: initial; }
-    .app-shell--authenticated .sidebar-label { display: block; }
-    .app-shell--authenticated .sidebar-brand { justify-content: flex-start; }
-    .app-shell--authenticated .nav-link-pdv { justify-content: flex-start; padding-inline: 10px; }
-    .app-shell--authenticated .operator-chip { justify-content: flex-start; padding-inline: 10px; }
-    .app-shell--authenticated.is-open .sidebar { transform: translateX(0); }
+    .app-shell--application .app-main,
+    .app-shell--application.is-collapsed .app-main { margin-left: 0; }
+    .app-shell--application .sidebar { width: 252px; }
+    .app-shell--application .brand-copy,
+    .app-shell--application .sidebar-label,
+    .app-shell--application .nav-copy { display: initial; }
+    .app-shell--application .sidebar-label { display: block; }
+    .app-shell--application .sidebar-brand { justify-content: flex-start; }
+    .app-shell--application .nav-link-pdv { justify-content: flex-start; padding-inline: 10px; }
+    .app-shell--application.is-open .sidebar { transform: translateX(0); }
     .sidebar-backdrop { position: fixed; z-index: 30; inset: 0; border: 0; background: rgb(8 28 39 / 44%); }
-    .app-shell--authenticated.is-open .sidebar-backdrop { display: block; }
+    .app-shell--application.is-open .sidebar-backdrop { display: block; }
     .dashboard-intro { grid-template-columns: minmax(0, 1fr) minmax(210px, .8fr); }
 }
 

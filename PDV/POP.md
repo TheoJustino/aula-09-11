@@ -5,7 +5,7 @@
 - **Nome:** Instalação, configuração, inicialização e operação do sistema PDV.
 - **Sistema:** PDV — Ponto de Venda.
 - **Objetivo:** orientar a preparação do ambiente, o acesso aos módulos MVC e os cuidados de operação e segurança.
-- **Responsáveis pela execução:** administrador do ambiente ou responsável técnico designado pela instituição. A operação diária cabe ao operador autorizado.
+- **Responsáveis pela execução:** administrador do ambiente ou responsável técnico designado pela instituição. A operação diária cabe ao responsável pela demonstração.
 
 ## 2. Pré-requisitos
 
@@ -50,21 +50,9 @@ A conexão constrói uma DSN `pgsql`, exige `sslmode=require`, usa o primeiro se
 
 Não há `.env.example`. Não coloque credenciais reais em `POP.md`, `README.md`, commits ou mensagens. Não copie o `.env` para `public/`.
 
-### 3.3 Segredo do operador
+### 3.3 Acesso para demonstração
 
-O acesso operacional depende de `PDV_OPERATOR_SECRET_HASH` no ambiente do Apache. Gere o hash localmente com PHP CLI; o segredo deve ser informado durante a execução e não deve ser salvo no código ou na sessão:
-
-```sh
-php -r '$secret = trim(fgets(STDIN)); echo password_hash($secret, PASSWORD_DEFAULT), PHP_EOL;'
-```
-
-No VirtualHost, configure o valor localmente:
-
-```apache
-SetEnv PDV_OPERATOR_SECRET_HASH "<hash-gerado-localmente>"
-```
-
-Consulte também `OPERADOR.md`. Nunca registre o segredo original nem um hash real no controle de versão. Reinicie o Apache após mudar o ambiente. Sem o hash configurado, o acesso falha de forma fechada.
+A autenticação de operador foi removida para a avaliação acadêmica local. Não configure senha, hash ou variável de segredo. Todas as rotas MVC ficam acessíveis a quem alcançar a aplicação; portanto, restrinja o VirtualHost a localhost e não publique/encaminhe a porta para redes externas. Esta configuração não é adequada para produção.
 
 ### 3.4 Diretórios e arquivos sensíveis
 
@@ -101,14 +89,13 @@ Após cada execução, confira as tabelas e chaves no cliente PostgreSQL. Este p
 
 1. Inicie o Apache pelo painel de controle do XAMPP e confirme que não há erro na configuração do VirtualHost.
 2. Inicie/valide o PostgreSQL ou o serviço de banco fornecido pelo ambiente.
-3. Confirme que `PDV/.env` contém `SRVDB` e que o Apache recebe `PDV_OPERATOR_SECRET_HASH`.
-4. Acesse no navegador a URL configurada no VirtualHost e abra `/operador/acesso` (acrescente o prefixo do subdiretório, se houver).
-5. Informe o segredo correspondente ao hash configurado. Não existe senha padrão documentada.
-6. Após autenticar, confirme que o painel e a navegação lateral aparecem. A página inicial não depende de consulta ao banco; produtos, clientes, carrinho, vendas e relatórios dependem do PostgreSQL e das tabelas necessárias.
+3. Confirme que `PDV/.env` contém `SRVDB` e que o processo PHP consegue ler o arquivo.
+4. Acesse no navegador a raiz do VirtualHost (acrescente o prefixo do subdiretório, se houver). Não há tela de login.
+5. Confirme que o painel e a navegação lateral aparecem. A página inicial não depende de consulta ao banco; produtos, clientes, carrinho, vendas e relatórios dependem do PostgreSQL e das tabelas necessárias.
 
 ## 6. Operação do sistema
 
-As rotas operacionais exigem operador autenticado. Formulários que alteram dados usam POST e proteção CSRF; após operações bem-sucedidas a aplicação usa redirecionamento para evitar reenvio.
+As rotas não exigem autenticação nesta versão local de demonstração. Formulários que alteram dados continuam usando POST e proteção CSRF; após operações bem-sucedidas a aplicação usa redirecionamento para evitar reenvio.
 
 ### Produtos
 
@@ -136,7 +123,7 @@ As rotas operacionais exigem operador autenticado. Formulários que alteram dado
 
 1. Acesse Relatórios para consultar vendas, opcionalmente filtrando por data inicial/final e forma de pagamento.
 2. Use **Visualizar** para consultar cliente (quando associado), data, pagamento, produtos, quantidades, preços e subtotais.
-3. Use **Sair** no menu lateral para encerrar a sessão. O logout é POST e exige CSRF.
+3. Não há ação de login ou logout. As sessões PHP continuam sendo usadas pelo carrinho, CSRF e mensagens temporárias; restrinja o uso ao ambiente local.
 
 ## 7. Verificações e solução de problemas
 
@@ -146,7 +133,7 @@ As rotas operacionais exigem operador autenticado. Formulários que alteram dado
 | Rotas retornam 404 | Confirme `DocumentRoot` em `PDV/public`, `mod_rewrite` ativo, `AllowOverride All`, `.htaccess` presente e prefixo/URL usados no VirtualHost. |
 | Upload falha por permissão | Confirme escrita do usuário Apache/PHP em `public/uploads/products`; valide também limite de upload do PHP acima de 2 MB considerando o multipart. Não dê permissão ampla ao diretório. |
 | Upload rejeitado | Use JPEG/PNG/WebP verdadeiro, extensão compatível e arquivo menor ou igual a 2 MB; confirme `fileinfo` na configuração PHP carregada pelo Apache. |
-| Segredo do operador não funciona | Confirme que `PDV_OPERATOR_SECRET_HASH` está no ambiente do VirtualHost, que o valor é um hash produzido por `password_hash()`, e reinicie o Apache. A mensagem é intencionalmente genérica. |
+| A aplicação não pede senha | Esse é o comportamento intencional da versão de demonstração. Não a exponha à rede; a autenticação foi removida e não há controle de acesso por usuário. |
 | Extensão PHP ausente | Verifique o `php.ini` realmente usado pelo Apache/XAMPP, não somente o PHP CLI. Habilite `pdo_pgsql` e `fileinfo` e reinicie o Apache. |
 | Migration falha | Não repita `CREATE TABLE` sem verificar se a tabela já existe. Confirme ordem (clientes antes de vendas), existência de `produtos` e compatibilidade entre `produtos.id` e `produto_id INTEGER`. Preserve o erro SQL completo apenas em ambiente administrativo protegido. |
 
@@ -154,12 +141,12 @@ O servidor embutido do PHP não lê `.htaccess`; ele não é equivalente à vali
 
 ## 8. Encerramento e segurança
 
-- Encerre a sessão pelo botão **Sair**. Depois, pare Apache e PostgreSQL local pelo painel XAMPP se não forem necessários a outros serviços; não desligue um banco gerenciado compartilhado sem autorização.
-- Guarde `.env`, hash do operador, backups e arquivos de configuração fora do controle de versão e com acesso restrito. Nunca compartilhe senha, hash, token CSRF ou URL de conexão.
-- Restrinja o acesso às rotas operacionais e aos dados pessoais de clientes. A autenticação usa um segredo compartilhado; ela não identifica operadores individualmente nem oferece trilha de auditoria por pessoa.
+- Feche a aba/janela da demonstração e pare Apache/PostgreSQL local pelo painel XAMPP quando não forem necessários a outros serviços; não desligue um banco gerenciado compartilhado sem autorização.
+- Guarde `.env`, backups e arquivos de configuração fora do controle de versão e com acesso restrito. Nunca compartilhe credenciais ou tokens CSRF.
+- Como não há autenticação, limite o serviço a localhost e a dados fictícios/de demonstração. Não use esta configuração em produção ou redes compartilhadas.
 - Mantenha o site sob HTTPS em uso remoto, faça backups do banco e dos uploads conforme a política institucional e teste a restauração em ambiente controlado.
 - Preserve `PDV/public` como única raiz pública. Não exponha `app/`, `config/`, `database/` ou `.env`; as regras `.htaccess` são defesa adicional e não substituem a configuração correta do `DocumentRoot`.
 
 ### Situação das validações
 
-Na última verificação, o ambiente tinha PHP CLI 8.3.33, somente o driver PDO SQLite e `fileinfo` habilitado. Foram feitos lint, verificações de rotas e testes isolados com SQLite em memória para partes do repository, validação, carrinho, relatórios e autenticação. Isso não comprova integração PostgreSQL. A conexão real, as migrations, o XAMPP/PHP 8.2 e uploads via Apache permanecem pendentes de validação no ambiente de implantação.
+Na última verificação, o ambiente tinha PHP CLI 8.3.33, somente o driver PDO SQLite e `fileinfo` habilitado. Foram feitos lint, verificações de rotas e testes isolados com SQLite em memória para partes do repository, validação, carrinho, relatórios e CSRF. Isso não comprova integração PostgreSQL. A conexão real, as migrations, o XAMPP/PHP 8.2 e uploads via Apache permanecem pendentes de validação no ambiente de implantação.

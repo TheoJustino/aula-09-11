@@ -8,7 +8,7 @@ use DomainException;
 use PDV\Repositories\CustomerRepository;
 use PDV\Repositories\ProductRepository;
 use PDV\Services\CartService;
-use PDV\Services\OperatorGuard;
+use PDV\Services\CsrfProtection;
 
 final class CartController
 {
@@ -21,14 +21,10 @@ final class CartController
 
     public function index(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-
         $summary = $this->cart->summary();
         $products = $this->products->findAvailable();
         $customers = $this->customers->findAll();
-        $csrfToken = $this->csrfToken();
+        $csrfToken = CsrfProtection::token();
         $success = $_SESSION['cart_success'] ?? null;
         $error = $_SESSION['cart_error'] ?? $_SESSION['sale_error'] ?? null;
         unset($_SESSION['cart_success'], $_SESSION['cart_error'], $_SESSION['sale_error']);
@@ -55,10 +51,7 @@ final class CartController
 
     public function add(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-        if (!OperatorGuard::hasValidCsrfToken($_POST['_csrf'] ?? null)) {
+        if (!CsrfProtection::isValid($_POST['_csrf'] ?? null)) {
             return $this->forbidden();
         }
 
@@ -75,10 +68,7 @@ final class CartController
 
     public function update(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-        if (!OperatorGuard::hasValidCsrfToken($_POST['_csrf'] ?? null)) {
+        if (!CsrfProtection::isValid($_POST['_csrf'] ?? null)) {
             return $this->forbidden();
         }
 
@@ -95,10 +85,7 @@ final class CartController
 
     public function remove(): array
     {
-        if (!OperatorGuard::isAuthenticated()) {
-            return OperatorGuard::accessRequired();
-        }
-        if (!OperatorGuard::hasValidCsrfToken($_POST['_csrf'] ?? null)) {
+        if (!CsrfProtection::isValid($_POST['_csrf'] ?? null)) {
             return $this->forbidden();
         }
 
@@ -129,7 +116,7 @@ final class CartController
 
     private function redirectWithFlash(string $key, string $message): array
     {
-        OperatorGuard::startSession();
+        CsrfProtection::startSession();
         $_SESSION[$key] = $message;
 
         return ['redirect' => '/carrinho'];
