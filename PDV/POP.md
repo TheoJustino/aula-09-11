@@ -1,0 +1,165 @@
+# Procedimento Operacional Padrão — Implantação do PDV
+
+## 1. Identificação
+
+- **Nome:** Instalação, configuração, inicialização e operação do sistema PDV.
+- **Sistema:** PDV — Ponto de Venda.
+- **Objetivo:** orientar a preparação do ambiente, o acesso aos módulos MVC e os cuidados de operação e segurança.
+- **Responsáveis pela execução:** administrador do ambiente ou responsável técnico designado pela instituição. A operação diária cabe ao operador autorizado.
+
+## 2. Pré-requisitos
+
+- Sistema operacional compatível com XAMPP. O ambiente de desenvolvimento observado é um container Ubuntu 24.04; ele não é uma instalação XAMPP.
+- XAMPP/Apache com PHP 8.2 como versão-alvo do projeto. A última verificação local usou PHP CLI 8.3.33; a aplicação não foi validada no XAMPP 8.2 real.
+- PostgreSQL acessível pela aplicação. A conexão exige SSL e usa opções de endpoint originalmente destinadas ao serviço Neon; confirme que o provedor escolhido aceita essas opções.
+- Extensões PHP `PDO`, `pdo_pgsql` e `fileinfo` habilitadas na instalação que atende as requisições Apache. O driver `pdo_pgsql` não está disponível no ambiente de desenvolvimento verificado.
+- Apache com `mod_rewrite` e permissão para aplicar `.htaccess` (`AllowOverride` compatível com as regras do projeto).
+- Permissão de leitura para o código e de escrita do usuário Apache/PHP em `PDV/public/uploads/products` para receber imagens. A pasta não deve ser aberta para escrita por usuários não confiáveis.
+- Acesso ao código-fonte e às configurações do Apache e do banco. Não é necessário Composer ou npm: não há manifestos desses gerenciadores no projeto.
+- Conexão à internet para carregar o Bootstrap 5.3.0-alpha1 referenciado por CDN.
+
+## 3. Preparação do ambiente
+
+### 3.1 Código e diretório público
+
+Disponibilize o projeto em um diretório controlado e configure o VirtualHost para apontar o `DocumentRoot` somente para `PDV/public`. Use o caminho absoluto correspondente à máquina; não copie o caminho do ambiente de desenvolvimento como se fosse universal.
+
+Exemplo estrutural para o VirtualHost do Apache, substituindo o marcador pelo caminho real:
+
+```apache
+DocumentRoot "<caminho-absoluto>/PDV/public"
+<Directory "<caminho-absoluto>/PDV/public">
+    AllowOverride All
+    Require all granted
+</Directory>
+```
+
+Habilite `mod_rewrite` na configuração do Apache e reinicie o serviço depois de alterar o VirtualHost. As regras em `public/.htaccess` encaminham caminhos MVC ao front controller e servem arquivos estáticos existentes. `PDV/.htaccess` é uma defesa adicional; não substitui o `DocumentRoot` correto. Não use `PDV/` como raiz pública.
+
+Os scripts antigos (`pdv.php`, `editar_produto.php`, `salvar_produto.php` e outros) continuam no projeto, mas não fazem parte das rotas MVC. Não os use como entrada do sistema MVC nem os publique por uma configuração alternativa de raiz.
+
+### 3.2 Banco e arquivo `.env`
+
+`app/Config/Database.php` lê `PDV/.env` diretamente, sem biblioteca dotenv. Crie o arquivo localmente com a variável `SRVDB`, substituindo todos os marcadores pelos dados fornecidos pelo administrador do PostgreSQL:
+
+```dotenv
+SRVDB="postgresql://<usuario>:<senha>@<host>:<porta>/<banco>"
+```
+
+A conexão constrói uma DSN `pgsql`, exige `sslmode=require`, usa o primeiro segmento do host como `endpoint` e solicita o fuso `America/Cuiaba`. Essa opção de endpoint pode não ser aceita por uma instalação PostgreSQL genérica/local. Antes da implantação, confirme o formato de conexão exigido pelo provedor sem remover opções do código por tentativa.
+
+Não há `.env.example`. Não coloque credenciais reais em `POP.md`, `README.md`, commits ou mensagens. Não copie o `.env` para `public/`.
+
+### 3.3 Segredo do operador
+
+O acesso operacional depende de `PDV_OPERATOR_SECRET_HASH` no ambiente do Apache. Gere o hash localmente com PHP CLI; o segredo deve ser informado durante a execução e não deve ser salvo no código ou na sessão:
+
+```sh
+php -r '$secret = trim(fgets(STDIN)); echo password_hash($secret, PASSWORD_DEFAULT), PHP_EOL;'
+```
+
+No VirtualHost, configure o valor localmente:
+
+```apache
+SetEnv PDV_OPERATOR_SECRET_HASH "<hash-gerado-localmente>"
+```
+
+Consulte também `OPERADOR.md`. Nunca registre o segredo original nem um hash real no controle de versão. Reinicie o Apache após mudar o ambiente. Sem o hash configurado, o acesso falha de forma fechada.
+
+### 3.4 Diretórios e arquivos sensíveis
+
+- Mantenha `.env`, `app/`, `config/` e `database/` fora da raiz pública; somente `public/` deve ser servida.
+- Preserve as regras `.htaccess` existentes e confirme que o Apache está autorizado a aplicá-las.
+- Garanta escrita apenas para o usuário de serviço em `public/uploads/products`.
+- A pasta de uploads desativa listagem/CGI e nega extensões executáveis. O serviço aceita somente JPEG, PNG e WebP, valida MIME/extensão e imagem, limita o tamanho a 2 MB e gera nomes aleatórios.
+- Imagens antigas em `PDV/imagens/` são mantidas para os scripts legados; o MVC só apresenta prévia de arquivos gerenciados em `public/uploads/products`.
+
+## 4. Preparação do banco de dados
+
+**Não execute as migrations até confirmar o schema do banco alvo.** O ambiente de desenvolvimento atual não tem `pdo_pgsql` e a integração PostgreSQL não foi validada.
+
+1. Crie ou selecione o banco PostgreSQL usando o procedimento aprovado pelo administrador/serviço de hospedagem.
+2. Verifique a existência da tabela legada `produtos` e seus campos. Os scripts do projeto usam `id`, `cod`, `nome`, `categoria`, `validade`, `quantidade`, `preco_unitario`, `preco_pacote` e `imagem`, mas o repositório não contém DDL que confirme tipos, tamanhos, nulabilidade ou restrições da tabela.
+3. Confirme especificamente o tipo nativo de `produtos.id`. A migration de vendas declara `itens_venda.produto_id INTEGER REFERENCES produtos(id)`; a criação dessa FK pode falhar se os tipos forem incompatíveis. Não ajuste o schema automaticamente: interrompa e peça validação técnica caso não corresponda.
+4. Confira se as tabelas `clientes`, `vendas` ou `itens_venda` já existem. Os arquivos usam `CREATE TABLE` sem `IF NOT EXISTS`; executá-los sobre tabelas existentes causará erro.
+5. Aplique manualmente, uma única vez, nesta ordem:
+   1. `database/migrations/20261110_create_clientes.sql`
+   2. `database/migrations/20261110_create_sales.sql`
+
+A migration de clientes define `clientes.id` como `BIGINT IDENTITY` e CPF obrigatório/único. A migration de vendas depende de `clientes` e da tabela preexistente `produtos`; cria `vendas` e `itens_venda`, usa `ON DELETE SET NULL` para o cliente e `ON DELETE RESTRICT` para o produto. Não existe migration de produtos.
+
+Com `psql` instalado, os arquivos podem ser aplicados manualmente a partir de `PDV/`. `-W` solicita a senha no terminal; substitua os marcadores e use somente o host/banco autorizados:
+
+```sh
+psql -W -h <host> -p <porta> -U <usuario> -d <banco> -f database/migrations/20261110_create_clientes.sql
+psql -W -h <host> -p <porta> -U <usuario> -d <banco> -f database/migrations/20261110_create_sales.sql
+```
+
+Após cada execução, confira as tabelas e chaves no cliente PostgreSQL. Este procedimento é documental: nenhuma migration foi executada durante sua elaboração.
+
+## 5. Inicialização
+
+1. Inicie o Apache pelo painel de controle do XAMPP e confirme que não há erro na configuração do VirtualHost.
+2. Inicie/valide o PostgreSQL ou o serviço de banco fornecido pelo ambiente.
+3. Confirme que `PDV/.env` contém `SRVDB` e que o Apache recebe `PDV_OPERATOR_SECRET_HASH`.
+4. Acesse no navegador a URL configurada no VirtualHost e abra `/operador/acesso` (acrescente o prefixo do subdiretório, se houver).
+5. Informe o segredo correspondente ao hash configurado. Não existe senha padrão documentada.
+6. Após autenticar, confirme que o painel e a navegação lateral aparecem. A página inicial não depende de consulta ao banco; produtos, clientes, carrinho, vendas e relatórios dependem do PostgreSQL e das tabelas necessárias.
+
+## 6. Operação do sistema
+
+As rotas operacionais exigem operador autenticado. Formulários que alteram dados usam POST e proteção CSRF; após operações bem-sucedidas a aplicação usa redirecionamento para evitar reenvio.
+
+### Produtos
+
+1. Acesse Produtos no menu para consultar ou pesquisar por nome/código.
+2. Use **Novo produto** para cadastrar código, nome, categoria, validade, quantidade, preços unitário/pacote e, opcionalmente, imagem.
+3. Na edição, deixe o campo de imagem vazio para manter o valor atual. Uploads aceitos: JPEG, PNG ou WebP, até 2 MB.
+4. A listagem marca estoque zerado e considera baixo estoque até 5 unidades.
+5. A exclusão é feita por POST. Se o banco rejeitar a exclusão por relacionamento com venda, a aplicação apresenta uma mensagem e preserva o registro.
+
+### Clientes
+
+1. Acesse Clientes para listar os cadastros.
+2. Use o formulário para cadastrar nome e CPF, com telefone/e-mail opcionais.
+3. Edite ou exclua pelas ações da listagem. A validação verifica formato do CPF, e-mail e CPF duplicado.
+
+### Carrinho e venda
+
+1. Acesse **Nova venda** pelo menu.
+2. Adicione produtos e quantidades disponíveis. O carrinho fica na sessão e não altera estoque.
+3. Ajuste ou remova itens conforme necessário; estoque e preços são conferidos novamente ao fechar a venda.
+4. Selecione opcionalmente um cliente e a forma de pagamento (`dinheiro`, `pix` ou `cartao`) e confirme.
+5. Após o commit da transação, o carrinho é limpo e a tela de confirmação exibe a venda persistida. Se ocorrer falha antes da confirmação, a transação sofre rollback e o carrinho é preservado.
+
+### Relatórios e encerramento da sessão
+
+1. Acesse Relatórios para consultar vendas, opcionalmente filtrando por data inicial/final e forma de pagamento.
+2. Use **Visualizar** para consultar cliente (quando associado), data, pagamento, produtos, quantidades, preços e subtotais.
+3. Use **Sair** no menu lateral para encerrar a sessão. O logout é POST e exige CSRF.
+
+## 7. Verificações e solução de problemas
+
+| Sintoma | Verificações recomendadas |
+|---|---|
+| Erro de conexão PostgreSQL | Confirme `PDV/.env`, a sintaxe da URL `SRVDB`, host/porta/banco, `pdo_pgsql`, SSL obrigatório e suporte do provedor à opção `endpoint`. Não publique a URL em logs ou mensagens. |
+| Rotas retornam 404 | Confirme `DocumentRoot` em `PDV/public`, `mod_rewrite` ativo, `AllowOverride All`, `.htaccess` presente e prefixo/URL usados no VirtualHost. |
+| Upload falha por permissão | Confirme escrita do usuário Apache/PHP em `public/uploads/products`; valide também limite de upload do PHP acima de 2 MB considerando o multipart. Não dê permissão ampla ao diretório. |
+| Upload rejeitado | Use JPEG/PNG/WebP verdadeiro, extensão compatível e arquivo menor ou igual a 2 MB; confirme `fileinfo` na configuração PHP carregada pelo Apache. |
+| Segredo do operador não funciona | Confirme que `PDV_OPERATOR_SECRET_HASH` está no ambiente do VirtualHost, que o valor é um hash produzido por `password_hash()`, e reinicie o Apache. A mensagem é intencionalmente genérica. |
+| Extensão PHP ausente | Verifique o `php.ini` realmente usado pelo Apache/XAMPP, não somente o PHP CLI. Habilite `pdo_pgsql` e `fileinfo` e reinicie o Apache. |
+| Migration falha | Não repita `CREATE TABLE` sem verificar se a tabela já existe. Confirme ordem (clientes antes de vendas), existência de `produtos` e compatibilidade entre `produtos.id` e `produto_id INTEGER`. Preserve o erro SQL completo apenas em ambiente administrativo protegido. |
+
+O servidor embutido do PHP não lê `.htaccess`; ele não é equivalente à validação final em Apache. A integração PostgreSQL, as migrations e o fluxo real de upload ainda precisam ser testados no ambiente de implantação.
+
+## 8. Encerramento e segurança
+
+- Encerre a sessão pelo botão **Sair**. Depois, pare Apache e PostgreSQL local pelo painel XAMPP se não forem necessários a outros serviços; não desligue um banco gerenciado compartilhado sem autorização.
+- Guarde `.env`, hash do operador, backups e arquivos de configuração fora do controle de versão e com acesso restrito. Nunca compartilhe senha, hash, token CSRF ou URL de conexão.
+- Restrinja o acesso às rotas operacionais e aos dados pessoais de clientes. A autenticação usa um segredo compartilhado; ela não identifica operadores individualmente nem oferece trilha de auditoria por pessoa.
+- Mantenha o site sob HTTPS em uso remoto, faça backups do banco e dos uploads conforme a política institucional e teste a restauração em ambiente controlado.
+- Preserve `PDV/public` como única raiz pública. Não exponha `app/`, `config/`, `database/`, `.env`, `db.php` ou scripts legados; as regras `.htaccess` são defesa adicional e não substituem a configuração correta do `DocumentRoot`.
+
+### Situação das validações
+
+Na última verificação, o ambiente tinha PHP CLI 8.3.33, somente o driver PDO SQLite e `fileinfo` habilitado. Foram feitos lint, verificações de rotas e testes isolados com SQLite em memória para partes do repository, validação, carrinho, relatórios e autenticação. Isso não comprova integração PostgreSQL. A conexão real, as migrations, o XAMPP/PHP 8.2 e uploads via Apache permanecem pendentes de validação no ambiente de implantação.

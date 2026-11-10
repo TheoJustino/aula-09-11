@@ -1,3 +1,11 @@
 .env
 .env.*
 !.env.example
+
+# Runtime logs
+**/error_log
+*.log
+
+# Uploaded product images are local runtime data.
+/PDV/public/uploads/products/*
+!/PDV/public/uploads/products/.htaccess
