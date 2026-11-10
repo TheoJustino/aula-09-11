@@ -1,0 +1,108 @@
+<?php
+
+declare(strict_types=1);
+
+namespace PDV\Repositories;
+
+use PDO;
+
+final class ProductRepository
+{
+    public function __construct(private PDO $connection)
+    {
+    }
+
+    public function findAvailable(): array
+    {
+        $statement = $this->connection->query(
+            'SELECT id, cod, nome, quantidade, preco_unitario
+             FROM produtos
+             WHERE quantidade > 0
+             ORDER BY nome, id'
+        );
+
+        return array_map(self::normalize(...), $statement->fetchAll());
+    }
+
+    public function findById(int $id): ?array
+    {
+        $statement = $this->connection->prepare(
+            'SELECT id, cod, nome, quantidade, preco_unitario FROM produtos WHERE id = :id'
+        );
+        $statement->execute(['id' => $id]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : self::normalize($row);
+    }
+
+    public function findByIds(array $ids): array
+    {
+        return $this->queryByIds($ids, false);
+    }
+
+    public function lockByIds(array $ids): array
+    {
+        return $this->queryByIds($ids, true);
+    }
+
+    public function decreaseStock(int $id, int $quantity): bool
+    {
+        $statement = $this->connection->prepare(
+            'UPDATE produtos
+             SET quantidade = quantidade - :quantity
+             WHERE id = :id AND quantidade >= :minimum_quantity'
+        );
+        $statement->execute([
+            'quantity' => $quantity,
+            'id' => $id,
+            'minimum_quantity' => $quantity,
+        ]);
+
+        return $statement->rowCount() === 1;
+    }
+
+    private function queryByIds(array $ids, bool $forUpdate): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+        if ($ids === []) {
+            return [];
+        }
+
+        $placeholders = [];
+        $parameters = [];
+        foreach ($ids as $index => $id) {
+            $placeholder = 'product_id_' . $index;
+            $placeholders[] = ':' . $placeholder;
+            $parameters[$placeholder] = $id;
+        }
+
+        $sql = 'SELECT id, cod, nome, quantidade, preco_unitario
+                FROM produtos
+                WHERE id IN (' . implode(', ', $placeholders) . ')
+                ORDER BY id';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+
+        $statement = $this->connection->prepare($sql);
+        $statement->execute($parameters);
+        $products = [];
+        foreach ($statement->fetchAll() as $row) {
+            $product = self::normalize($row);
+            $products[$product['id']] = $product;
+        }
+
+        return $products;
+    }
+
+    private static function normalize(array $row): array
+    {
+        return [
+            'id' => (int) $row['id'],
+            'cod' => (string) ($row['cod'] ?? ''),
+            'nome' => (string) $row['nome'],
+            'quantidade' => (int) $row['quantidade'],
+            'preco_unitario' => (string) $row['preco_unitario'],
+        ];
+    }
+}

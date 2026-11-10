@@ -1,0 +1,10 @@
+Options -Indexes
+
+<FilesMatch "(?i)^(?:\.env(?:\..*)?|db\.php|error_log)$">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?:app|config)(?:/|$) - [F,L,NC]
+</IfModule>
